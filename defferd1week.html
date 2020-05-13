@@ -1,2 +1,36 @@
-d
-ds
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content = "text/html; charset=UTF-8">
+        <title>webgldeferred</title>
+        <script src = "defferd1week.js" type ="text/javascript"></script>
+
+        <script id = "vs" type = "x-shader/x-vertex">
+        
+        attribute vec3 position;
+
+        void main(void){
+            gl_Position = vec4(position,1.0);
+        }
+    
+        </script>
+
+        <script id = "fs" type = "x-shader/x-fragment">
+        #extension GL_EXT_draw_buffers : require
+        
+        precision mediump float;
+        uniform float time;
+        uniform vec2 resolution;
+        void main(){
+            vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            vec2 color = (vec2(1.0)+p.xy)*0.5;
+            gl_FragColor = vec4(color,0.0,1.);
+        }
+        
+        </script>
+
+    </head>
+    <body>
+        <canvas id = "canvas"></canvas>
+        <p><input type="checkbox" id = "check" checked><label for= "check">auto run</label></p>
+    </body>
+</html>
