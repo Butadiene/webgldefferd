@@ -1,4 +1,8 @@
-var c,cw,ch,mx,my,gl,run,eCheck;
+var c,cw,ch,mx,my,run,eCheck;
+  /**
+     * @type {WebGLRenderingContext}
+     */
+var gl;
 var startTime;
 var time = 0.0;
 var tempTime = 0.0;
@@ -25,9 +29,7 @@ window.onload = function(){
     
     eCheck.addEventListener('change',checkChange,true);
 
-    /**
-     * @type {WebGLRenderingContext}
-     */
+  
     gl = c.getContext('webgl')||c.getContext('experimental-webgl');
     
     
@@ -62,28 +64,70 @@ window.onload = function(){
     var attStride = new Array(2);
     attStride[0] = 3;
 
+
+    v_shader = create_shader('preview_vs');
+    f_shader = create_shader('preview_fs');
+    var pPrg = create_program(v_shader,f_shader);
+    var pAttLocation = [];
+    pAttLocation[0] = gl.getAttribLocation(pPrg,'position');
+    pAttLocation[1] = gl.getAttribLocation(pPrg,'texCoord');
+    var pAttStride = [];
+    pAttStride[0] = 3;
+    pAttStride[1] = 2;
+    var pUniLocation = [];
+    pUniLocation[0] = gl.getUniformLocation(pPrg, 'time');
+    pUniLocation[1] = gl.getUniformLocation(pPrg,'resolution');
+    pUniLocation[2] = gl.getUniformLocation(pPrg, 'offset');
+    pUniLocation[3] = gl.getUniformLocation(pPrg, 'texture');
+
     var vertex_position = [
       -1.0, 1.0, 0.0,
        1.0, 1.0, 0.0,
       -1.0,-1.0, 0.0,
        1.0,-1.0, 0.0
     ]
+
+    var texCoord = [
+        0.0,1.0,
+        1.0,1.0,
+        0.0,0.0,
+        1.0,0.0
+    ];
+
     var index = [
          0,2,1,
          1,2,3
     ]
 
+    var offset = [
+        [-0.5,-0.5, 0.0],
+        [-0.5, 0.5, 0.0],
+        [ 0.5,-0.5, 0.0],
+        [ 0.5, 0.5, 0.0]
+    ];
+
     var position_vbo = create_vbo(vertex_position);
-
-    set_attribute([position_vbo],attLocation,attStride);
-
+    var texcoord_vbo = create_vbo(texCoord);
+    var vboList = [position_vbo,texcoord_vbo];
     var ibo = create_ibo(index);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
 
-    gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT,0);
+    //gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT,0);
 
     startTime = new this.Date().getTime();
+
+    var frameBuffer = create_framebuffer_MRT(cw,ch);
+
+    gl.activeTexture(gl.TEXTURE0);
+    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[0]);
+    gl.activeTexture(gl.TEXTURE1);
+    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[1]);
+    gl.activeTexture(gl.TEXTURE2);
+    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[2]);
+    gl.activeTexture(gl.TEXTURE3);
+    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[3]);
+    
 
     render();
 
@@ -91,13 +135,47 @@ window.onload = function(){
         if(!run){return;}
 
         time = (new Date().getTime() - startTime)*0.001;
+        gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer.f);
+            
+        var bufferList = [
+            ext.COLOR_ATTACHMENT0_WEBGL,
+            ext.COLOR_ATTACHMENT1_WEBGL,
+            ext.COLOR_ATTACHMENT2_WEBGL,
+            ext.COLOR_ATTACHMENT3_WEBGL
+        ];
 
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        ext.drawBuffersWEBGL(bufferList);
 
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.useProgram(prg);
+        set_attribute(position_vbo,attLocation,attStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
         gl.uniform1f(uniLocation[0],time+tempTime);
         gl.uniform2fv(uniLocation[1],[cw,ch]);
+        gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
-        gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+
+
+        gl.useProgram(pPrg);
+
+        set_attribute(vboList,pAttLocation,pAttStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
+       // gl.uniform1f(uniLocation[0],time+tempTime);
+       // gl.uniform2fv(uniLocation[1],[cw,ch]);
+        for(i =0;i<4;++i){
+            gl.uniform3fv(pUniLocation[2],offset[i]);
+            gl.uniform1i(pUniLocation[3],i);
+            gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+
+        }
+        
+
+    
         gl.flush();
 
         setTimeout(render,fps);
@@ -196,7 +274,50 @@ window.onload = function(){
 
         return ibo;
     }
+    function create_framebuffer_MRT(width,height){
+        var frameBuffer = gl.createFramebuffer();
+    
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    
+        var fTexture = [];
+    
+        for(var i = 0;i<4;++i){
+            fTexture[i] = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D,fTexture[i]);
+            gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    
+            gl.framebufferTexture2D(gl.FRAMEBUFFER,ext.COLOR_ATTACHMENT0_WEBGL+i,gl.TEXTURE_2D,fTexture[i],0);
+    
+        }
+
+        var depthRenderBuffer = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER,depthRenderBuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,width,height);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depthRenderBuffer);
+
+        gl.bindTexture(gl.TEXTURE_2D,null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER,null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+        return{
+            f:frameBuffer,
+            d:depthRenderBuffer,
+            t:fTexture
+        }
+
+    }
+
+
+
+
 }
+
+
 
 
 
