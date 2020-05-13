@@ -1,4 +1,4 @@
-var c,cw,ch,mx,my,run,eCheck;
+var c,cw,ch,mx,my;
   /**
      * @type {WebGLRenderingContext}
      */
@@ -20,14 +20,10 @@ window.onload = function(){
      * @type {HTMLCanvasElement}
      */
     c = document.getElementById('canvas');
-    cw = 512; ch = 512;
-    c.width = cw;
-    c.height = ch;
-
-    eCheck = document.getElementById('check');
-
-    
-    eCheck.addEventListener('change',checkChange,true);
+   
+    cw = 512;
+    ch =  512;
+    c.width = cw; c.height = ch;
 
   
     gl = c.getContext('webgl')||c.getContext('experimental-webgl');
@@ -55,13 +51,12 @@ window.onload = function(){
     var f_shader = create_shader('fs');
 
     var prg = create_program(v_shader,f_shader);
-    run = (prg != null);if(!run){this.eCheck.checked=false;}
     uniLocation[0] = gl.getUniformLocation(prg, 'time');
     uniLocation[1] = gl.getUniformLocation(prg,'resolution')
-    var attLocation = new Array(2);
+    var attLocation = [];
     attLocation[0] = gl.getAttribLocation(prg,'position');
 
-    var attStride = new Array(2);
+    var attStride = [];
     attStride[0] = 3;
 
 
@@ -77,8 +72,10 @@ window.onload = function(){
     var pUniLocation = [];
     pUniLocation[0] = gl.getUniformLocation(pPrg, 'time');
     pUniLocation[1] = gl.getUniformLocation(pPrg,'resolution');
-    pUniLocation[2] = gl.getUniformLocation(pPrg, 'offset');
-    pUniLocation[3] = gl.getUniformLocation(pPrg, 'texture');
+    pUniLocation[2] = gl.getUniformLocation(pPrg, 'texture0');
+    pUniLocation[3] = gl.getUniformLocation(pPrg, 'texture1');
+    pUniLocation[4] = gl.getUniformLocation(pPrg, 'texture2');
+    pUniLocation[5] = gl.getUniformLocation(pPrg, 'texture3');
 
     var vertex_position = [
       -1.0, 1.0, 0.0,
@@ -99,13 +96,6 @@ window.onload = function(){
          1,2,3
     ]
 
-    var offset = [
-        [-0.5,-0.5, 0.0],
-        [-0.5, 0.5, 0.0],
-        [ 0.5,-0.5, 0.0],
-        [ 0.5, 0.5, 0.0]
-    ];
-
     var position_vbo = create_vbo(vertex_position);
     var texcoord_vbo = create_vbo(texCoord);
     var vboList = [position_vbo,texcoord_vbo];
@@ -113,26 +103,27 @@ window.onload = function(){
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
 
-    //gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT,0);
 
     startTime = new this.Date().getTime();
 
-    var frameBuffer = create_framebuffer_MRT(cw,ch);
-
-    gl.activeTexture(gl.TEXTURE0);
-    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[0]);
-    gl.activeTexture(gl.TEXTURE1);
-    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[1]);
-    gl.activeTexture(gl.TEXTURE2);
-    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[2]);
-    gl.activeTexture(gl.TEXTURE3);
-    this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[3]);
+    
     
 
     render();
 
     function render(){
-        if(!run){return;}
+         
+
+        var frameBuffer = create_framebuffer_MRT(cw,ch);
+
+        gl.activeTexture(gl.TEXTURE0);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[0]);
+        gl.activeTexture(gl.TEXTURE1);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[1]);
+        gl.activeTexture(gl.TEXTURE2);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[2]);
+        gl.activeTexture(gl.TEXTURE3);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[3]);
 
         time = (new Date().getTime() - startTime)*0.001;
         gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer.f);
@@ -165,14 +156,17 @@ window.onload = function(){
 
         set_attribute(vboList,pAttLocation,pAttStride);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
-       // gl.uniform1f(uniLocation[0],time+tempTime);
-       // gl.uniform2fv(uniLocation[1],[cw,ch]);
-        for(i =0;i<4;++i){
-            gl.uniform3fv(pUniLocation[2],offset[i]);
-            gl.uniform1i(pUniLocation[3],i);
-            gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+        gl.uniform1f(pUniLocation[0],time+tempTime);
+        gl.uniform2fv(pUniLocation[1],[cw,ch]);
+       
+        
+        gl.uniform1i(pUniLocation[2],0);
+        gl.uniform1i(pUniLocation[3],1);
+        gl.uniform1i(pUniLocation[4],2);
+        gl.uniform1i(pUniLocation[5],3);
+        gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
 
-        }
+        
         
 
     
@@ -181,16 +175,14 @@ window.onload = function(){
         setTimeout(render,fps);
     }
 
-    function checkChange(e){
-        run = e.currentTarget.checked;
-        if(run){
-            startTime = new Date().getTime();
-            render();
-        }else{
-            tempTime += time;
+    function resize(canvas){
+        var displayWidth = canvas.clientWidth;
+        var displayHeight = canvas.clientHeight;
+        if(canvas.width != displayWidth || canvas.height != displayHeight){
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
         }
     }
-
 
     function create_shader(id){
         var shader;

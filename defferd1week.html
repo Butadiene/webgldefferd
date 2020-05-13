@@ -22,41 +22,56 @@
         uniform vec2 resolution;
         void main(){
             vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            vec2 uv = gl_FragCoord.xy/resolution;
             vec2 color = (vec2(1.0)+p.xy)*0.5;
             //gl_FragColor = vec4(color,0.0,1.);
             gl_FragData[0] = vec4(1.,0.,0.,1.);
             gl_FragData[1] = vec4(0.,1.,0.,1.);
             gl_FragData[2] = vec4(0.,0.,1.,1.);
-            gl_FragData[3] = vec4(p,sin(time),1);
+            gl_FragData[3] = vec4(uv-0.1,sin(time),1);
         }
         
         </script>
         <script id = "preview_vs" type = "x-shader/x-vertex">
         attribute vec3 position;
         attribute vec2 texCoord;
-        uniform vec3 offset;
         varying vec2 vTexCoord;
         
         void main(){
             vTexCoord = texCoord;
-            gl_Position = vec4(position*0.5 + offset, 1.0);
+            gl_Position = vec4(position, 1.0);
         }
          </script>
         <script id = "preview_fs" type = "x-shader/x-fragment">
         precision mediump float;
         
-        uniform sampler2D texture;
+        uniform float time;
+        uniform vec2 resolution;
+        uniform sampler2D texture0;
+        uniform sampler2D texture1;
+        uniform sampler2D texture2;
+        uniform sampler2D texture3;
         varying vec2 vTexCoord;
+        
 
         void main(){
-            gl_FragColor = texture2D(texture, vTexCoord);
+            vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            vec2 uv = gl_FragCoord.xy/resolution;
+            gl_FragColor = texture2D(texture3, uv);
         }
 
 
         </script>
+    <style>
+        canvas{
+            width:  100vw;
+            height: 100vh;
+            display:block;
+        }
+    </style>
+    
     </head>
     <body>
         <canvas id = "canvas"></canvas>
-        <p><input type="checkbox" id = "check" checked><label for= "check">auto run</label></p>
     </body>
 </html>
