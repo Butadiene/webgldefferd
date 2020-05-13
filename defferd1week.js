@@ -1,4 +1,4 @@
-var c,cw,ch,mx,my;
+var c,cw,ch,mx,my,wrapper;
   /**
      * @type {WebGLRenderingContext}
      */
@@ -8,7 +8,7 @@ var time = 0.0;
 var tempTime = 0.0;
 var fps = 1000/30;
 var uniLocation = new Array
-
+	
 
 window.onload = function(){
     var mrt_status ={
@@ -19,10 +19,11 @@ window.onload = function(){
     /**
      * @type {HTMLCanvasElement}
      */
+    wrapper = document.getElementById('wrapper');
     c = document.getElementById('canvas');
    
-    cw = 512;
-    ch =  512;
+    cw = wrapper.offsetWidth;
+    ch =  wrapper.offsetHeight;
     c.width = cw; c.height = ch;
 
   
@@ -84,12 +85,7 @@ window.onload = function(){
        1.0,-1.0, 0.0
     ]
 
-    var texCoord = [
-        0.0,1.0,
-        1.0,1.0,
-        0.0,0.0,
-        1.0,0.0
-    ];
+
 
     var index = [
          0,2,1,
@@ -97,8 +93,8 @@ window.onload = function(){
     ]
 
     var position_vbo = create_vbo(vertex_position);
-    var texcoord_vbo = create_vbo(texCoord);
-    var vboList = [position_vbo,texcoord_vbo];
+
+    var vboList = [position_vbo];
     var ibo = create_ibo(index);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
@@ -106,15 +102,10 @@ window.onload = function(){
 
     startTime = new this.Date().getTime();
 
-    
-    
-
-    render();
-
-    function render(){
-         
-
-        var frameBuffer = create_framebuffer_MRT(cw,ch);
+    var frameBuffer;
+    maketexture();
+    function maketexture(){
+        frameBuffer = create_framebuffer_MRT(cw,ch);
 
         gl.activeTexture(gl.TEXTURE0);
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[0]);
@@ -124,6 +115,31 @@ window.onload = function(){
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[2]);
         gl.activeTexture(gl.TEXTURE3);
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[3]);
+    }
+
+    var maketextureflag = false;
+    
+    window.addEventListener("resize", function(){
+        getSize();
+    });
+    
+    function getSize(){
+        cw = wrapper.clientWidth;
+        ch =  wrapper.clientHeight;
+        c.width = cw; c.height = ch;
+        gl.viewport(0, 0, cw, ch);
+        maketextureflag = true;
+    }
+
+
+
+    render();
+
+    function render(){
+        if(maketextureflag){
+            maketexture();
+            maketextureflag = false;
+        }
 
         time = (new Date().getTime() - startTime)*0.001;
         gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer.f);
@@ -141,7 +157,7 @@ window.onload = function(){
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.useProgram(prg);
-        set_attribute(position_vbo,attLocation,attStride);
+        set_attribute(vboList,attLocation,attStride);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
         gl.uniform1f(uniLocation[0],time+tempTime);
         gl.uniform2fv(uniLocation[1],[cw,ch]);
@@ -149,7 +165,6 @@ window.onload = function(){
         gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
 
 
         gl.useProgram(pPrg);
@@ -166,23 +181,12 @@ window.onload = function(){
         gl.uniform1i(pUniLocation[5],3);
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
 
-        
-        
-
-    
         gl.flush();
 
         setTimeout(render,fps);
     }
 
-    function resize(canvas){
-        var displayWidth = canvas.clientWidth;
-        var displayHeight = canvas.clientHeight;
-        if(canvas.width != displayWidth || canvas.height != displayHeight){
-            canvas.width = displayWidth;
-            canvas.height = displayHeight;
-        }
-    }
+        
 
     function create_shader(id){
         var shader;
