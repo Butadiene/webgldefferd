@@ -31,6 +31,7 @@ window.onload = function(){
     
     
     var ext = gl.getExtension('WEBGL_draw_buffers');
+    var extf = gl.getExtension('OES_texture_float');
     if(!ext){
         alert('WEBGL_draw_buffers not supported');
         return;
@@ -53,7 +54,8 @@ window.onload = function(){
 
     var prg = create_program(v_shader,f_shader);
     uniLocation[0] = gl.getUniformLocation(prg, 'time');
-    uniLocation[1] = gl.getUniformLocation(prg,'resolution')
+    uniLocation[1] = gl.getUniformLocation(prg,'resolution');
+    uniLocation[2] = gl.getUniformLocation(prg,'campos');
     var attLocation = [];
     attLocation[0] = gl.getAttribLocation(prg,'position');
 
@@ -66,7 +68,6 @@ window.onload = function(){
     var pPrg = create_program(v_shader,f_shader);
     var pAttLocation = [];
     pAttLocation[0] = gl.getAttribLocation(pPrg,'position');
-    pAttLocation[1] = gl.getAttribLocation(pPrg,'texCoord');
     var pAttStride = [];
     pAttStride[0] = 3;
     pAttStride[1] = 2;
@@ -77,6 +78,11 @@ window.onload = function(){
     pUniLocation[3] = gl.getUniformLocation(pPrg, 'texture1');
     pUniLocation[4] = gl.getUniformLocation(pPrg, 'texture2');
     pUniLocation[5] = gl.getUniformLocation(pPrg, 'texture3');
+    pUniLocation[6] = gl.getUniformLocation(pPrg, 'texture4');
+    pUniLocation[7] = gl.getUniformLocation(pPrg, 'campos');
+
+
+    
 
     var vertex_position = [
       -1.0, 1.0, 0.0,
@@ -115,6 +121,8 @@ window.onload = function(){
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[2]);
         gl.activeTexture(gl.TEXTURE3);
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[3]);
+        gl.activeTexture(gl.TEXTURE4);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[4]);
     }
 
     var maketextureflag = false;
@@ -148,7 +156,8 @@ window.onload = function(){
             ext.COLOR_ATTACHMENT0_WEBGL,
             ext.COLOR_ATTACHMENT1_WEBGL,
             ext.COLOR_ATTACHMENT2_WEBGL,
-            ext.COLOR_ATTACHMENT3_WEBGL
+            ext.COLOR_ATTACHMENT3_WEBGL,
+            ext.COLOR_ATTACHMENT4_WEBGL
         ];
 
         ext.drawBuffersWEBGL(bufferList);
@@ -161,6 +170,13 @@ window.onload = function(){
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
         gl.uniform1f(uniLocation[0],time+tempTime);
         gl.uniform2fv(uniLocation[1],[cw,ch]);
+        var camPosition = [3];
+        var radi = 18.;
+        var krt = time+tempTime;
+        camPosition[0] = radi*Math.cos(krt);
+        camPosition[1] = 3.;
+        camPosition[2] = radi*Math.sin(krt);
+        gl.uniform3fv(uniLocation[2],camPosition);
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
         gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
@@ -179,6 +195,8 @@ window.onload = function(){
         gl.uniform1i(pUniLocation[3],1);
         gl.uniform1i(pUniLocation[4],2);
         gl.uniform1i(pUniLocation[5],3);
+        gl.uniform1i(pUniLocation[6],4);
+        gl.uniform3fv(uniLocation[7],camPosition);
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
 
         gl.flush();
@@ -271,19 +289,23 @@ window.onload = function(){
         return ibo;
     }
     function create_framebuffer_MRT(width,height){
+
+        
+
         var frameBuffer = gl.createFramebuffer();
+        
     
         gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
     
         var fTexture = [];
     
-        for(var i = 0;i<4;++i){
+        for(var i = 0;i<5;++i){
             fTexture[i] = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D,fTexture[i]);
-            gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+            gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.FLOAT,null);
     
-            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     

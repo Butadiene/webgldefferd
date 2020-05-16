@@ -17,19 +17,255 @@
 
         <script id = "fs" type = "x-shader/x-fragment">
         #extension GL_EXT_draw_buffers : require
-        
+ 
         precision mediump float;
         uniform float time;
         uniform vec2 resolution;
+        uniform vec3 campos;
+        float pi = 3.1415926535;
+        mat2 rot(float r){
+            return mat2(cos(r),sin(r),-sin(r),cos(r));
+        }
+
+        float random (vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
+
+        vec2 random2( ivec2 p ) {
+            return fract(sin(vec2(dot(vec2(p),vec2(127.1,311.7)),dot(vec2(p),vec2(269.5,183.3))))*43758.5453);
+        }
+        
+        float maxabs(vec2 p){return max(abs(p.x), abs(p.y));}
+
+        float voronoi(vec2 uv){
+            uv *= 2.0;
+            vec2 i = floor(uv);
+            vec2 f = fract(uv);
+        
+            vec2 res = vec2(8.0);
+            for(int x = -1; x <=1; x++){
+              for(int y = -1; y <=1; y++){
+                vec2 n = vec2(x,y);
+                vec2 np = vec2(random(i + n),random(i + n + vec2(12.56,64.66)));
+                vec2 p = n + np - f;
+                float d = abs(p.x) + abs(p.y);
+                if(d < res.x){
+                  res.y = res.x;
+                  res.x = d;
+                } else if(d < res.y){
+                  res.y = d;
+                }
+              }
+            }
+            float  c = res.y - res.x;
+            c = sqrt(c);
+            c = smoothstep(0.4,0.0,c);
+            return c;
+          }
+        
+        float cube(vec3 p,vec3 s){
+            vec3 q = abs(p);
+            vec3 m = max(s-q,0.0);
+            return length(max(q-s,0.))-min(min(m.x,m.y),m.z);
+        }
+
+        
+        float cylin( vec3 p, float h, float r )
+        {
+        vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(h,r);
+        return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+        }
+
+        float octahedron(vec3 p, float s){
+            p = abs(p);
+            float m = p.x+p.y+p.z-s;
+            vec3 q;
+                if( 3.0*p.x < m ) q = p.xyz;
+            else if( 3.0*p.y < m ) q = p.yzx;
+            else if( 3.0*p.z < m ) q = p.zxy;
+            else return m*0.57735027;
+                
+            float k = clamp(0.5*(q.z-q.y+s),0.0,s); 
+            return length(vec3(q.x,q.y-s+k,q.z-k)); 
+        }
+
+        float boxring(vec3 p,vec2 rd,vec2 s){
+            vec2 qp = abs(p.xz);
+            vec2 qm = max(rd-qp,0.);
+            float r1 = length(max(qp-rd,0.))-min(qm.x,qm.y);
+            vec2 q = abs(vec2(r1,p.y));
+            vec2 m = max(s-q,0.);
+            return length(max(q-s,0.))-min(m.x,m.y);
+        }
+
+        float ring(vec3 p,float r,vec2 s){
+            vec2 q = abs(vec2(length(p.xz)-r,p.y));
+            vec2 m = max(s-q,0.);
+            return length(max(q-s,0.))-min(m.x,m.y);
+        }
+
+      
+        float obfl(vec3 p){
+            vec3 sp = p;
+            // vec3 skr = vec3(length(p),atan(length(p.xz),p.y),atan(p.x,p.z));
+            //p = skr.x*vec3(sin(skr.y)*cos(skr.z),cos(skr.y),sin(skr.y)*sin(skr.z));
+
+            p.xz = abs(p.xz);
+
+            float kt = 0.1;
+
+            for(int i = 0;i<4;i++){
+                p.y = abs(p.y)-0.4;
+                p.yz *= rot(kt);
+                p.xy *= rot(kt);
+            }
+     
+            float d1 =boxring(p,vec2(3.),vec2(0.03));
+            p = sp;
+            float d = octahedron(p,2.5);
+            d = min(d,d1);
+            return d;
+        }
+
+
+        float stage(vec3 p){
+            p.y = abs(p.y)-13.;
+            return cylin(p,7.-clamp(-p.y-6.7,0.,1.1),8.);
+        }
+
+        float capring(vec3 p){
+            float cd = length(p.xz)-6.;
+          //  p.y = abs(p.y)-6.5;
+            
+            vec2 skr = vec2(length(p.xz),atan(p.x,p.z));
+
+            for(int i =0;i<4;i++){
+                float fi =float(i);
+                
+                float es = skr.x-9.2/pow(2.,fi);
+                skr.x = abs(es);
+            
+                skr.y += (fi+2.)*0.1*sign(es)*(time);
+            }
+            p.xz = skr.x*vec2(cos(skr.y),sin(skr.y));
+         
+            float d2 = ring(p,0.2,vec2(0.2,0.3));
+            p -= vec3(0.3,0,0);
+            p.xz *= rot(pi/4.);
+            d2 = max(d2,-cube(p,vec3(0.3,0.5,0.3)));
+            d2 = max(d2,-cd);
+            return d2;
+        }
+
+        float wall (vec3 p){
+            return -cube(p,vec3(30,11.,30.));
+        }
+
+        float capring2(vec3 p){
+            float cd = length(p.xz)-8.;
+            p.y = abs(p.y)-7.5;
+            
+            p.y = abs(p.y) -0.4;
+
+            float csw = min(cube(p,vec3(0.2,0.2,20.)),cube(p,vec3(20.,0.2,0.2)));
+            
+            vec2 skr = vec2(length(p.xz),atan(p.x,p.z));
+
+            for(int i =0;i<4;i++){
+                float fi =float(i);
+                
+                float es = skr.x-10./pow(2.,fi);
+                skr.x = abs(es);
+            
+          
+            }
+            p.xz = skr.x*vec2(cos(skr.y),sin(skr.y));
+         
+
+            float d2 = ring(p,1.,vec2(0.4,.2));
+      
+            d2 = max(d2,-cd);
+            d2 = min(d2,csw);
+            return d2;
+        }
+
+        vec4 dist(vec3 p){
+            float dob = obfl(p);
+            float dstage = stage(p);
+            float dwall = wall(p);
+            float dcapring = capring(p);
+            float dcapring2 = capring2(p);
+            float scalecube = cube(p,vec3(10,0.1,0.1));
+   
+
+            float d;
+            vec3 col = vec3(1.,1.,1.);
+            d = min(dob,dwall);
+            d = min(d,dstage);
+            d = min(d,dcapring);
+            d = min(d,dcapring2);
+            return vec4(col,d);
+        }
+
+        vec3 getNormal(vec3 p){
+            vec2 e = vec2(0.00001,0.);
+            return normalize(vec3(
+                dist(p+e.xyy).w-dist(p-e.xyy).w,
+                dist(p+e.yxy).w-dist(p-e.yxy).w,
+                dist(p+e.yyx).w-dist(p-e.yyx).w
+            ));
+        }
+
         void main(){
             vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            float krt = time;
+            float radi = 18.;
+            vec3 ro = vec3(radi*cos(krt),3.,radi*sin(krt));
+            ro = campos;
+            vec3 ta = vec3(0);
+            vec3 cdir = normalize(ta-ro);
+            vec3 side = cross(cdir,vec3(0,1,0));
+            vec3 up = cross(side,cdir);
+            vec3 rd = normalize(p.x*side+p.y*up+cdir*0.9);
+
+            float d,t=0.;
+            vec4 vd;
+            float minimum = 0.001;
+            float maximum = 100.;
+            for(int i =0;i<140;i++){
+                vd = dist(ro+rd*t);
+                d = vd.w;
+                t += d*.8;
+                if(d<minimum||t>maximum)break;
+            }
+            vec3 sp = ro+rd*t;
+            vec3 col = vec3(0);
+            vec3 normal = vec3(0);
+            if(d<minimum){
+                normal = getNormal(sp);
+                if(wall(sp)<minimum+0.1){
+                    float ns = 0.1;
+                    float zn =voronoi(sp.xy*ns);
+                    float yn =voronoi(sp.zx*ns);
+                    float xn =voronoi(sp.yz*ns);
+                    normal -= .9*(
+                        sign(normal.x)*step(0.8,abs(normal.x))*vec3(0,xn,xn)+
+                        sign(normal.y)*step(0.8,abs(normal.y))*vec3(yn,0,yn)+
+                        sign(normal.z)*step(0.8,abs(normal.z))*vec3(zn,zn,0));
+                    normal = normalize(normal);
+                }
+                col = vec3(0.5,0.5,0.5);
+            }
+
+
             vec2 uv = gl_FragCoord.xy/resolution;
-            vec2 color = (vec2(1.0)+p.xy)*0.5;
-            //gl_FragColor = vec4(color,0.0,1.);
-            gl_FragData[0] = vec4(1.,0.,0.,1.);
-            gl_FragData[1] = vec4(0.,1.,0.,1.);
-            gl_FragData[2] = vec4(0.,0.,1.,1.);
-            gl_FragData[3] = vec4(vec3(length(uv-0.5)-0.),1);
+            gl_FragData[0] = vec4(col,1.);
+            gl_FragData[1] = vec4(normal,1.);
+            gl_FragData[2] = vec4(sp,1.);
+            gl_FragData[3] = vec4(vec3(capring(sp)),1);
+            gl_FragData[4] = vec4(normal,1);
         }
         
         </script>
@@ -38,7 +274,6 @@
 
         
         void main(){
-     
             gl_Position = vec4(position, 1.0);
         }
          </script>
@@ -47,21 +282,97 @@
         
         uniform float time;
         uniform vec2 resolution;
+        uniform vec3 campos;
         uniform sampler2D texture0;
         uniform sampler2D texture1;
         uniform sampler2D texture2;
         uniform sampler2D texture3;
+        uniform sampler2D texture4;
    
-        
+/*
+        float phong(vec3 viewdirection,vec3 lightdirection,vec3 albedo,normal,float specpow){
+            float NdotL =max(dot(normal,ld),0.);
+            
+        }
+  */      
 
         void main(){
             vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            
             vec2 uv = gl_FragCoord.xy/resolution;
-            gl_FragColor = texture2D(texture3, uv);
+            vec3 difcol = texture2D(texture0, uv).xyz;
+            vec3 normal = texture2D(texture1, uv).xyz;
+            vec3 pos = texture2D(texture2,uv).xyz;
+            vec3 custombuffer = texture2D(texture3,uv).xyz;
+            vec3 custombuffer2 = texture2D(texture4,uv).xyz;
+            vec3 vd = normalize(pos-campos);
+            vec3 col = vec3(0);
+
+            vec3 lpos = vec3(0,5,0);
+        
+
+            vec3 ld = -normalize(pos-lpos);
+            float NdotL = max(dot(normal,ld),0.);
+            col += NdotL * difcol/length(pos-lpos);
+
+            lpos = vec3(3,0,0);
+        
+            ld = -normalize(pos-lpos);
+            NdotL = max(dot(normal,ld),0.);
+            col += NdotL * difcol/length(pos-lpos);
+          
+            lpos = vec3(-3,0,3);
+        
+            ld = -normalize(pos-lpos);
+            NdotL = max(dot(normal,ld),0.);
+            col += NdotL * difcol/length(pos-lpos);
+
+            lpos = vec3(-8,0,3);
+        
+            ld = -normalize(pos-lpos);
+            NdotL = max(dot(normal,ld),0.);
+            col += NdotL * difcol/length(pos-lpos);
+
+         
+          
+            
+
+            gl_FragColor = vec4(col,1.);
+           // gl_FragData[0] = vec4(col,1.);
         }
 
 
         </script>
+
+
+        </script>
+        <script id = "post_vs" type = "x-shader/x-vertex">
+        attribute vec3 position;
+
+        
+        void main(){
+            gl_Position = vec4(position, 1.0);
+        }
+        </script>
+        <script id = "post_fs" type = "x-shader/x-fragment">
+        precision mediump float;
+        
+        uniform float time;
+        uniform vec2 resolution;
+        uniform sampler2D texture5;
+   
+        void main(){
+            vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            
+            vec2 uv = gl_FragCoord.xy/resolution;
+           
+
+            gl_FragColor = vec4(texture2D(texture5, uv).xyz,1.);
+        }
+
+
+        </script>
+
         <style>
             *{
             margin: 0;
