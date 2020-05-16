@@ -70,7 +70,6 @@ window.onload = function(){
     pAttLocation[0] = gl.getAttribLocation(pPrg,'position');
     var pAttStride = [];
     pAttStride[0] = 3;
-    pAttStride[1] = 2;
     var pUniLocation = [];
     pUniLocation[0] = gl.getUniformLocation(pPrg, 'time');
     pUniLocation[1] = gl.getUniformLocation(pPrg,'resolution');
@@ -81,7 +80,18 @@ window.onload = function(){
     pUniLocation[6] = gl.getUniformLocation(pPrg, 'texture4');
     pUniLocation[7] = gl.getUniformLocation(pPrg, 'campos');
 
-
+    v_shader = create_shader('post_vs');
+    f_shader = create_shader('post_fs');
+    var poPrg = create_program(v_shader,f_shader);
+    var poAttLocation = [];
+    pAttLocation[0] = gl.getAttribLocation(pPrg,'position');
+    var poAttStride = [];
+    poAttStride[0] = 3;
+    var poUniLocation = [];
+    poUniLocation[0] = gl.getUniformLocation(poPrg, 'time');
+    poUniLocation[1] = gl.getUniformLocation(poPrg,'resolution');
+    poUniLocation[2] = gl.getUniformLocation(poPrg, 'texture5');
+   
     
 
     var vertex_position = [
@@ -109,6 +119,7 @@ window.onload = function(){
     startTime = new this.Date().getTime();
 
     var frameBuffer;
+    var frameBuffer2;
     maketexture();
     function maketexture(){
         frameBuffer = create_framebuffer_MRT(cw,ch);
@@ -123,6 +134,13 @@ window.onload = function(){
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[3]);
         gl.activeTexture(gl.TEXTURE4);
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[4]);
+
+        frameBuffer2 = create_framebuffer_MRT2(cw,ch);
+
+        gl.activeTexture(gl.TEXTURE5);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer2.t[0]);
+
+
     }
 
     var maketextureflag = false;
@@ -150,6 +168,7 @@ window.onload = function(){
         }
 
         time = (new Date().getTime() - startTime)*0.001;
+
         gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer.f);
             
         var bufferList = [
@@ -161,7 +180,6 @@ window.onload = function(){
         ];
 
         ext.drawBuffersWEBGL(bufferList);
-
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -180,8 +198,15 @@ window.onload = function(){
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
         gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer2.f);
+        
+        bufferList = [
+            ext.COLOR_ATTACHMENT0_WEBGL,
+          
+        ];
+        ext.drawBuffersWEBGL(bufferList);
 
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.useProgram(pPrg);
 
@@ -198,6 +223,20 @@ window.onload = function(){
         gl.uniform1i(pUniLocation[6],4);
         gl.uniform3fv(uniLocation[7],camPosition);
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.useProgram(poPrg);
+
+        set_attribute(vboList,poAttLocation,poAttStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
+        gl.uniform1f(poUniLocation[0],time+tempTime);
+        gl.uniform2fv(poUniLocation[1],[cw,ch]);
+        gl.uniform1i(poUniLocation[2],5);
+
+        gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+
 
         gl.flush();
 
@@ -310,6 +349,48 @@ window.onload = function(){
             gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     
             gl.framebufferTexture2D(gl.FRAMEBUFFER,ext.COLOR_ATTACHMENT0_WEBGL+i,gl.TEXTURE_2D,fTexture[i],0);
+    
+        }
+
+        var depthRenderBuffer = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER,depthRenderBuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,width,height);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depthRenderBuffer);
+
+        gl.bindTexture(gl.TEXTURE_2D,null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER,null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+        return{
+            f:frameBuffer,
+            d:depthRenderBuffer,
+            t:fTexture
+        }
+
+    }
+    function create_framebuffer_MRT2(width,height){
+
+        
+
+        var frameBuffer = gl.createFramebuffer();
+        
+    
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    
+        var fTexture = [];
+    
+        for(var i = 0;i<1;++i){
+            fTexture[i] = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D,fTexture[i]);
+            gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.FLOAT,null);
+    
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    
+            gl.framebufferTexture2D(gl.FRAMEBUFFER,ext.COLOR_ATTACHMENT0_WEBGL+i,gl.TEXTURE_2D,fTexture[i],0);
+            console.log("Failed to open the specified link");
     
         }
 

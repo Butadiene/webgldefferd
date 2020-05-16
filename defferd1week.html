@@ -278,6 +278,7 @@
         }
          </script>
         <script id = "preview_fs" type = "x-shader/x-fragment">
+        #extension GL_EXT_draw_buffers : require
         precision mediump float;
         
         uniform float time;
@@ -337,8 +338,8 @@
           
             
 
-            gl_FragColor = vec4(col,1.);
-           // gl_FragData[0] = vec4(col,1.);
+         
+           gl_FragData[0] = vec4(col,1.);
         }
 
 
@@ -366,8 +367,8 @@
             
             vec2 uv = gl_FragCoord.xy/resolution;
            
-
-            gl_FragColor = vec4(texture2D(texture5, uv).xyz,1.);
+            vec3 col = texture2D(texture5, uv).xyz;
+            gl_FragColor = vec4(col,1.);
         }
 
 
