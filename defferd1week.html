@@ -32,7 +32,27 @@
                                  vec2(12.9898,78.233)))*
                 43758.5453123);
         }
-
+        float noise (in vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+        
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+        
+            // Smooth Interpolation
+        
+            // Cubic Hermine Curve.  Same as SmoothStep()
+            vec2 u = f*f*(3.0-2.0*f);
+            // u = smoothstep(0.,1.,f);
+        
+            // Mix 4 coorners percentages
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
         vec2 random2( ivec2 p ) {
             return fract(sin(vec2(dot(vec2(p),vec2(127.1,311.7)),dot(vec2(p),vec2(269.5,183.3))))*43758.5453);
         }
@@ -191,13 +211,29 @@
             return d2;
         }
 
+        vec2 pmod(vec2 p,float n){
+            float np = 3.14159265*2.0/n;
+            float r = atan(p.x,p.y)-0.5*np;
+            r = mod(r,np)-0.5*np;
+            return length(p)*vec2(cos(r),sin(r));
+          }
+
+        float particle(vec3 p){
+            p.xz = pmod(p.xz,8.);
+            p.y -= time;
+            float k = 5.;
+            p.x = abs(p.x-7.5)-3.5;
+            p.y = mod(p.y,k)-0.5*k;
+            return length(p)-0.1;
+        }
+
         vec4 dist(vec3 p){
             float dob = obfl(p);
             float dstage = stage(p);
             float dwall = wall(p);
             float dcapring = capring(p);
             float dcapring2 = capring2(p);
-            float scalecube = cube(p,vec3(10,0.1,0.1));
+            float particle = particle(p);
    
 
             float d;
@@ -206,11 +242,12 @@
             d = min(d,dstage);
             d = min(d,dcapring);
             d = min(d,dcapring2);
+            d = min(d,particle);
             return vec4(col,d);
         }
 
         vec3 getNormal(vec3 p){
-            vec2 e = vec2(0.00001,0.);
+            vec2 e = vec2(0.0001,0.);
             return normalize(vec3(
                 dist(p+e.xyy).w-dist(p-e.xyy).w,
                 dist(p+e.yxy).w-dist(p-e.yxy).w,
@@ -241,31 +278,103 @@
                 if(d<minimum||t>maximum)break;
             }
             vec3 sp = ro+rd*t;
+            float metallic = 0.;
+            float roughness = 0.;
+            float ems = 0.;
             vec3 col = vec3(0);
             vec3 normal = vec3(0);
+
+            float refmetallic = 0.;
+            float refroughness = 0.;
+            float refems = 0.;
+            vec3 refsp = vec3(0);
+            vec3 refcol= vec3(0);
+            vec3 refnormal =vec3(0);
+            int refbool = 0;
             if(d<minimum){
+                col = vec3(0.3);
+                metallic = 0.3;
+                roughness = 0.3;
+                ems = 0.;
+                if(obfl(sp)<minimum) col = vec3(0.1,0.9,0.9),metallic =0.5,roughness =1.;
+                if(stage(sp)<minimum) col = vec3(0.05,0.2,0.9),roughness=1.;
+                if(capring(sp)<minimum) col = vec3(0.1,0.9,.1),ems = 0.1;
+                if(particle(sp)<minimum) col = vec3(1,1,1),ems= 1.,metallic =0.,roughness =0.;
+                
                 normal = getNormal(sp);
                 if(wall(sp)<minimum+0.1){
                     float ns = 0.1;
                     float zn =voronoi(sp.xy*ns);
                     float yn =voronoi(sp.zx*ns);
                     float xn =voronoi(sp.yz*ns);
+                    float kemt = time*0.6;
+                    float ker = 0.2;
+                    float edb = clamp(sin(sp.y*ker+kemt),0.,1.)*step(0.8,abs(normal.x))*xn+clamp(sin(sp.x*ker+kemt),0.,1.)*step(0.8,abs(normal.y))*yn+clamp(sin(sp.y*ker+kemt),0.,1.)*step(0.8,abs(normal.z))*zn;
+                    col =  vec3(0.1,0.9,0.9)*edb,ems = 1.*edb;
                     normal -= .9*(
                         sign(normal.x)*step(0.8,abs(normal.x))*vec3(0,xn,xn)+
                         sign(normal.y)*step(0.8,abs(normal.y))*vec3(yn,0,yn)+
                         sign(normal.z)*step(0.8,abs(normal.z))*vec3(zn,zn,0));
                     normal = normalize(normal);
                 }
-                col = vec3(0.5,0.5,0.5);
+
+                t = 0.1;
+                ro = sp;
+                float sna = 30.;
+                rd = reflect(rd,normal);
+                float minimum = 0.01;
+                float maximum = 50.;
+                for(int i =0;i<60;i++){
+                    vd = dist(ro+rd*t);
+                    d = vd.w;
+                    t += d*.8;
+                    if(d<minimum||t>maximum)break;
+                }
+                
+                refsp = ro+rd*t;
+                refcol = vec3(0);
+                refnormal = vec3(0);
+                if(d<minimum){
+                    refnormal = getNormal(sp);
+                    refcol = vec3(0.3);
+                    if(obfl(refsp)<minimum) refcol = vec3(0.1,0.9,0.9),refmetallic =0.5,refroughness = 1.;
+                    if(stage(refsp)<minimum) refcol = vec3(0.05,0.2,0.9),refroughness=1.;
+                    if(capring(refsp)<minimum) refcol = vec3(0.1,0.9,.1),refems=.2;
+                    if(particle(sp)<minimum) refcol = vec3(1,1,1),refems= 1.,refmetallic =0.,refroughness = 0.;
+                    
+                    refbool = 1;
+                    if(wall(sp)<minimum+0.1){
+                        float ns = 0.1;
+                        float zn =voronoi(refsp.xy*ns);
+                        float yn =voronoi(refsp.zx*ns);
+                        float xn =voronoi(refsp.yz*ns);
+                        float kemt = time*0.6;
+                        float ker = .2;
+                        float edb = clamp(sin(refsp.y*ker+kemt),0.,1.)*step(0.8,abs(refnormal.x))*xn+clamp(sin(refsp.x*ker+kemt),0.,1.)*step(0.8,abs(refnormal.y))*yn+clamp(sin(refsp.y*ker+kemt),0.,1.)*step(0.8,abs(refnormal.z))*zn;
+                        col =  vec3(0.1,0.9,0.9)*edb,ems = 1.*edb;
+                        refnormal -= .9*(
+                            sign(refnormal.x)*step(0.8,abs(refnormal.x))*vec3(0,xn,xn)+
+                            sign(refnormal.y)*step(0.8,abs(refnormal.y))*vec3(yn,0,yn)+
+                            sign(refnormal.z)*step(0.8,abs(refnormal.z))*vec3(zn,zn,0));
+                        refnormal = normalize(refnormal);
+                    }
+    
+                }
+    
+
+            
             }
 
 
             vec2 uv = gl_FragCoord.xy/resolution;
-            gl_FragData[0] = vec4(col,1.);
-            gl_FragData[1] = vec4(normal,1.);
-            gl_FragData[2] = vec4(sp,1.);
-            gl_FragData[3] = vec4(vec3(capring(sp)),1);
-            gl_FragData[4] = vec4(normal,1);
+            gl_FragData[0] = vec4(col,metallic);
+            gl_FragData[1] = vec4(normal,roughness);
+            gl_FragData[2] = vec4(sp,ems);
+            gl_FragData[3] =  vec4(refcol,refmetallic);
+            gl_FragData[4] =  vec4(refnormal,refroughness);
+            gl_FragData[5] =  vec4(refsp,refems);
+            gl_FragData[6] = vec4(1,0,1,1);
+         
         }
         
         </script>
@@ -289,7 +398,9 @@
         uniform sampler2D texture2;
         uniform sampler2D texture3;
         uniform sampler2D texture4;
-   
+        uniform sampler2D texture5;
+        uniform sampler2D texture6;
+
         #define saturate(x) clamp(x,0.,1.)
         #define EPSILON 1e-6
         #define PI  3.14159265359
@@ -410,29 +521,83 @@
             irradiance *= PI;
             return irradiance*irradiance * SpecularBRDF(ld, normal,vd, specularColor, roughnessFactor);
         }
-        void main(){
-            vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
-            
-            vec2 uv = gl_FragCoord.xy/resolution;
-            vec3 difcol = texture2D(texture0, uv).xyz;
-            vec3 normal = texture2D(texture1, uv).xyz;
-            vec3 pos = texture2D(texture2,uv).xyz;
-            vec3 custombuffer = texture2D(texture3,uv).xyz;
-            vec3 custombuffer2 = texture2D(texture4,uv).xyz;
-            vec3 vd = normalize(campos-pos);
 
-            vec3 albedo = vec3(0.5);
-            float metallic = 0.5;
-            float roughness = 0.4;
+        vec3 coloring(vec3 pos,vec3 normal,vec3 vd,vec3 difcol,float metallic,float roughness,float ems){
+            vec3 albedo = difcol;
             vec3 diffuseColor = mix(albedo, vec3(0.0), metallic);
             vec3 specularColor = mix(vec3(0.04), albedo, metallic);
             float specularRoughness = roughness;
             vec3 reflectdiffuse = vec3(0);
             vec3 reflectspec = vec3(0);
 
-            vec3 col = vec3(0);
+            vec3 lpos = vec3(0,5,0);
+            vec3 ld = -normalize(pos-lpos);
+            vec3 lightcol = vec3(0.1);
+            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
 
+            lpos = vec3(16,0,0);
+            ld = -normalize(pos-lpos);
+            lightcol = vec3(0.1,0.3,0.1);
+            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+        
+            lpos = vec3(-3,0,3);
+            ld = -normalize(pos-lpos);
+            lightcol = vec3(0.1,0.1,0.7);
+            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+
+            lpos = vec3(-8,0,3);
+        
+            ld = -normalize(pos-lpos);
+            lightcol = vec3(0.2);
+            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+
+            return reflectdiffuse+reflectspec+ems*difcol;
             
+        }
+
+        void main(){
+            vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            
+            vec2 uv = gl_FragCoord.xy/resolution;
+            vec4 t0 = texture2D(texture0, uv);
+            vec3 difcol = t0.xyz;
+            float metallic = t0.w;
+            vec4 t1 =  texture2D(texture1, uv);
+            vec3 normal =t1.xyz;
+            float roughness = t1.w;
+            vec4 t2 =  texture2D(texture2,uv);
+            vec3 pos =t2.xyz;
+            float ems = t2.w;
+            
+            
+            vec4 t3 = texture2D(texture3,uv);
+            vec3 refdifcol = t3.xyz;
+            float refmetallic = t3.w;
+            vec4 t4 = texture2D(texture4,uv);
+            vec3 refnormal = t4.xyz;
+            float refroughness = t4.w;
+            vec4 t5 =  texture2D(texture5,uv);
+            vec3 refpos =t5.xyz;
+            float refems = t5.w;
+            
+            vec4 t6 =  texture2D(texture6,uv);
+            
+            vec3 vd = normalize(campos-pos);
+            vec3 refvd = normalize(pos-refpos);
+
+           
+
+            vec3 col = vec3(0);
+            vec3 rrx = vec3(0);
+            rrx = coloring(refpos,refnormal,refvd,refdifcol,metallic,roughness,refems);
+            col = coloring(pos,normal,vd,difcol,metallic,roughness,ems)+rrx*metallic;
+           
+           // col += 0.0001/t6.x;
+
             float ao = 0.;
             float rad = SAMPLE_RAD/pos.z;
 
@@ -441,38 +606,14 @@
             ao = 1.0-ao * INTENSITY;
 
                     
-
-            vec3 lpos = vec3(0,5,0);
-            vec3 ld = -normalize(pos-lpos);
-            vec3 lightcol = vec3(0.1,0.8,0.1);
-            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
-            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
-
-            lpos = vec3(3,0,0);
-            ld = -normalize(pos-lpos);
-            lightcol = vec3(0.1,0.1,0.9);
-            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
-            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
           
-            lpos = vec3(-3,0,3);
-            ld = -normalize(pos-lpos);
-            lightcol = vec3(0.1);
-            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
-            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
-
-            lpos = vec3(-8,0,3);
-        
-            ld = -normalize(pos-lpos);
-            lightcol = vec3(0.1);
-            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
-            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
-
-         
-            col = reflectdiffuse+reflectspec;
+               
+            
+            
             col *= vec3(ao);
 
          
-           gl_FragData[0] = vec4(col,1.);
+           gl_FragData[0] =vec4(col,1.);//vec4(t6.xyz,ao);
         }
 
 
@@ -493,14 +634,15 @@
         
         uniform float time;
         uniform vec2 resolution;
-        uniform sampler2D texture5;
+        uniform sampler2D texture7;
    
         void main(){
             vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
             
             vec2 uv = gl_FragCoord.xy/resolution;
            
-            vec3 col = texture2D(texture5, uv).xyz;
+            vec3 col = texture2D(texture7, uv).xyz;
+            float a = texture2D(texture7, uv).w;
             gl_FragColor = vec4(col,1.);
         }
 

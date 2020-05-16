@@ -78,7 +78,9 @@ window.onload = function(){
     pUniLocation[4] = gl.getUniformLocation(pPrg, 'texture2');
     pUniLocation[5] = gl.getUniformLocation(pPrg, 'texture3');
     pUniLocation[6] = gl.getUniformLocation(pPrg, 'texture4');
-    pUniLocation[7] = gl.getUniformLocation(pPrg, 'campos');
+    pUniLocation[7] = gl.getUniformLocation(pPrg, 'texture5');
+    pUniLocation[8] = gl.getUniformLocation(pPrg, 'texture6');
+    pUniLocation[9] = gl.getUniformLocation(pPrg, 'campos');
 
     v_shader = create_shader('post_vs');
     f_shader = create_shader('post_fs');
@@ -90,7 +92,7 @@ window.onload = function(){
     var poUniLocation = [];
     poUniLocation[0] = gl.getUniformLocation(poPrg, 'time');
     poUniLocation[1] = gl.getUniformLocation(poPrg,'resolution');
-    poUniLocation[2] = gl.getUniformLocation(poPrg, 'texture5');
+    poUniLocation[2] = gl.getUniformLocation(poPrg, 'texture7');
    
     
 
@@ -134,10 +136,14 @@ window.onload = function(){
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[3]);
         gl.activeTexture(gl.TEXTURE4);
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[4]);
+        gl.activeTexture(gl.TEXTURE5);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[5]);
+        gl.activeTexture(gl.TEXTURE6);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[6]);
 
         frameBuffer2 = create_framebuffer_MRT2(cw,ch);
 
-        gl.activeTexture(gl.TEXTURE5);
+        gl.activeTexture(gl.TEXTURE7);
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer2.t[0]);
 
 
@@ -176,7 +182,9 @@ window.onload = function(){
             ext.COLOR_ATTACHMENT1_WEBGL,
             ext.COLOR_ATTACHMENT2_WEBGL,
             ext.COLOR_ATTACHMENT3_WEBGL,
-            ext.COLOR_ATTACHMENT4_WEBGL
+            ext.COLOR_ATTACHMENT4_WEBGL,
+            ext.COLOR_ATTACHMENT5_WEBGL,
+            ext.COLOR_ATTACHMENT6_WEBGL
         ];
 
         ext.drawBuffersWEBGL(bufferList);
@@ -190,7 +198,7 @@ window.onload = function(){
         gl.uniform2fv(uniLocation[1],[cw,ch]);
         var camPosition = [3];
         var radi = 18.;
-        var krt = time+tempTime;
+        var krt = 0.;//time+tempTime;
         camPosition[0] = radi*Math.cos(krt);
         camPosition[1] = 3.;
         camPosition[2] = radi*Math.sin(krt);
@@ -221,7 +229,9 @@ window.onload = function(){
         gl.uniform1i(pUniLocation[4],2);
         gl.uniform1i(pUniLocation[5],3);
         gl.uniform1i(pUniLocation[6],4);
-        gl.uniform3fv(uniLocation[7],camPosition);
+        gl.uniform1i(pUniLocation[7],5);
+        gl.uniform1i(pUniLocation[8],6);
+        gl.uniform3fv(pUniLocation[9],camPosition);
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
         gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
@@ -233,7 +243,7 @@ window.onload = function(){
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
         gl.uniform1f(poUniLocation[0],time+tempTime);
         gl.uniform2fv(poUniLocation[1],[cw,ch]);
-        gl.uniform1i(poUniLocation[2],5);
+        gl.uniform1i(poUniLocation[2],7);
 
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
 
@@ -338,7 +348,7 @@ window.onload = function(){
     
         var fTexture = [];
     
-        for(var i = 0;i<5;++i){
+        for(var i = 0;i<7;++i){
             fTexture[i] = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D,fTexture[i]);
             gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.FLOAT,null);
@@ -352,10 +362,7 @@ window.onload = function(){
     
         }
 
-        var depthRenderBuffer = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER,depthRenderBuffer);
-        gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,width,height);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depthRenderBuffer);
+
 
         gl.bindTexture(gl.TEXTURE_2D,null);
         gl.bindRenderbuffer(gl.RENDERBUFFER,null);
@@ -363,7 +370,6 @@ window.onload = function(){
 
         return{
             f:frameBuffer,
-            d:depthRenderBuffer,
             t:fTexture
         }
 
@@ -394,10 +400,7 @@ window.onload = function(){
     
         }
 
-        var depthRenderBuffer = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER,depthRenderBuffer);
-        gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,width,height);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depthRenderBuffer);
+   
 
         gl.bindTexture(gl.TEXTURE_2D,null);
         gl.bindRenderbuffer(gl.RENDERBUFFER,null);
@@ -405,7 +408,7 @@ window.onload = function(){
 
         return{
             f:frameBuffer,
-            d:depthRenderBuffer,
+
             t:fTexture
         }
 
