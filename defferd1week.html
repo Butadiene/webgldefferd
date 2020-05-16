@@ -211,20 +211,30 @@
             return d2;
         }
 
-        vec2 pmod(vec2 p,float n){
-            float np = 3.14159265*2.0/n;
-            float r = atan(p.x,p.y)-0.5*np;
-            r = mod(r,np)-0.5*np;
-            return length(p)*vec2(cos(r),sin(r));
-          }
 
         float particle(vec3 p){
-            p.xz = pmod(p.xz,8.);
-            p.y -= time;
-            float k = 5.;
-            p.x = abs(p.x-7.5)-3.5;
+            float k = 6.;
+            float n = 8.;
+            float np = 3.14159265*2.0/n;
+            float r = atan(p.x,p.z)-0.5*np;
+
+            r += random(vec2(floor(p.y/k)));
+            r = mod(r,np)-0.5*np;
+            p.xz = length(p.xz)*vec2(cos(r),sin(r));
+       
+           
+            
+            float s = sign(p.x-10.5);
+            p.x = abs(p.x-12.5)-2.5;
+            float l = sign(p.x-1.5);
+            p.x = abs(p.x-1.5)-1.5;
+
+
+
+            p.y += 3.0*random(vec2(s,l)+vec2(floor(p.y/k)));
+            p.y -= time*0.3;
             p.y = mod(p.y,k)-0.5*k;
-            return length(p)-0.1;
+            return length(p)-0.06;
         }
 
         vec4 dist(vec3 p){
@@ -373,7 +383,7 @@
             gl_FragData[3] =  vec4(refcol,refmetallic);
             gl_FragData[4] =  vec4(refnormal,refroughness);
             gl_FragData[5] =  vec4(refsp,refems);
-            gl_FragData[6] = vec4(1,0,1,1);
+            gl_FragData[6] = vec4(1,1,1,1);
          
         }
         
@@ -413,6 +423,12 @@
         #define SAMPLE_RAD 0.02
         #define MAX_DISTANCE 4.0
         #define MOD3 vec3(.1031,.11369,.13787)
+
+        float random (vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
 
         float hash12(vec2 p)
         {
@@ -559,6 +575,26 @@
             
         }
 
+        float particle(vec3 p){
+            float k = 6.;
+            float n = 8.;
+            float np = 3.14159265*2.0/n;
+            float r = atan(p.x,p.z)-0.5*np;
+            r = mod(r,np)-0.5*np;
+            r += random(vec2(floor(p.y/k)));
+            p.xz = length(p.xz)*vec2(cos(r),sin(r));
+       
+           
+            
+            float s = sign(p.x-10.5);
+            p.x = abs(p.x-12.5)-2.5;
+            float l = sign(p.x-1.5);
+            p.x = abs(p.x-1.5)-1.5;
+            p.y += 2.*random(vec2(s,l)+vec2(floor(p.y/k)));
+            p.y -= time*0.3;
+            p.y = mod(p.y,k)-0.5*k;
+            return length(p)-0.06;
+        }
         void main(){
             vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
             
@@ -596,7 +632,7 @@
             rrx = coloring(refpos,refnormal,refvd,refdifcol,metallic,roughness,refems);
             col = coloring(pos,normal,vd,difcol,metallic,roughness,ems)+rrx*metallic;
            
-           // col += 0.0001/t6.x;
+            col += exp(-2.*particle(pos));
 
             float ao = 0.;
             float rad = SAMPLE_RAD/pos.z;
@@ -605,10 +641,6 @@
 
             ao = 1.0-ao * INTENSITY;
 
-                    
-          
-               
-            
             
             col *= vec3(ao);
 
@@ -639,10 +671,40 @@
         void main(){
             vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
             
+          //  vec3 texel = max(vec3(0.) )
+
             vec2 uv = gl_FragCoord.xy/resolution;
-           
-            vec3 col = texture2D(texture7, uv).xyz;
-            float a = texture2D(texture7, uv).w;
+            float minBright = 0.2;
+            vec3 texel = max(vec3(0.0), (texture2D(texture7, uv) - minBright).rgb);
+            gl_FragColor = vec4(texel, 1.0);
+        }
+
+
+        </script>
+        <script id = "postpost_vs" type = "x-shader/x-vertex">
+        attribute vec3 position;
+
+        
+        void main(){
+            gl_Position = vec4(position, 1.0);
+        }
+        </script>
+        <script id = "postpost_fs" type = "x-shader/x-fragment">
+        precision mediump float;
+        
+        uniform float time;
+        uniform vec2 resolution;
+        uniform sampler2D texture0;
+
+        void main(){
+            vec2 p = (gl_FragCoord.xy*2.0-resolution)/min(resolution.x,resolution.y);
+            
+        //  vec3 texel = max(vec3(0.) )
+
+            vec2 uv = gl_FragCoord.xy/resolution;
+        
+            vec3 col = texture2D(texture0, uv).xyz;
+            float a = texture2D(texture0, uv).w;
             gl_FragColor = vec4(col,1.);
         }
 

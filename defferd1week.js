@@ -86,13 +86,25 @@ window.onload = function(){
     f_shader = create_shader('post_fs');
     var poPrg = create_program(v_shader,f_shader);
     var poAttLocation = [];
-    pAttLocation[0] = gl.getAttribLocation(pPrg,'position');
+    poAttLocation[0] = gl.getAttribLocation(poPrg,'position');
     var poAttStride = [];
     poAttStride[0] = 3;
     var poUniLocation = [];
     poUniLocation[0] = gl.getUniformLocation(poPrg, 'time');
     poUniLocation[1] = gl.getUniformLocation(poPrg,'resolution');
     poUniLocation[2] = gl.getUniformLocation(poPrg, 'texture7');
+   
+    v_shader = create_shader('postpost_vs');
+    f_shader = create_shader('postpost_fs');
+    var popoPrg = create_program(v_shader,f_shader);
+    var popoAttLocation = [];
+    popoAttLocation[0] = gl.getAttribLocation(popoPrg,'position');
+    var popoAttStride = [];
+    popoAttStride[0] = 3;
+    var popoUniLocation = [];
+    popoUniLocation[0] = gl.getUniformLocation(popoPrg, 'time');
+    popoUniLocation[1] = gl.getUniformLocation(popoPrg,'resolution');
+    popoUniLocation[2] = gl.getUniformLocation(popoPrg, 'texture0');
    
     
 
@@ -124,6 +136,7 @@ window.onload = function(){
     var frameBuffer2;
     maketexture();
     function maketexture(){
+        frameBuffer3 = create_framebuffer_MRT2(cw,ch);
         frameBuffer = create_framebuffer_MRT(cw,ch);
 
         gl.activeTexture(gl.TEXTURE0);
@@ -145,6 +158,10 @@ window.onload = function(){
 
         gl.activeTexture(gl.TEXTURE7);
         this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer2.t[0]);
+
+        
+
+     
 
 
     }
@@ -209,7 +226,7 @@ window.onload = function(){
         gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer2.f);
         
         bufferList = [
-            ext.COLOR_ATTACHMENT0_WEBGL,
+            ext.COLOR_ATTACHMENT0_WEBGL
           
         ];
         ext.drawBuffersWEBGL(bufferList);
@@ -235,6 +252,18 @@ window.onload = function(){
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
         gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
+        gl.activeTexture(gl.TEXTURE0);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer3.t[0]);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer3.f);
+        
+        bufferList = [
+            ext.COLOR_ATTACHMENT0_WEBGL
+          
+        ];
+        ext.drawBuffersWEBGL(bufferList);
+
+
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.useProgram(poPrg);
@@ -246,7 +275,19 @@ window.onload = function(){
         gl.uniform1i(poUniLocation[2],7);
 
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
+        gl.useProgram(popoPrg);
+
+        set_attribute(vboList,popoAttLocation,popoAttStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
+        gl.uniform1f(popoUniLocation[0],time+tempTime);
+        gl.uniform2fv(popoUniLocation[1],[cw,ch]);
+        gl.uniform1i(popoUniLocation[2],0);
+
+        gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+        gl.activeTexture(gl.TEXTURE0);
+        this.gl.bindTexture(gl.TEXTURE_2D,frameBuffer.t[0]);
 
         gl.flush();
 
@@ -359,7 +400,7 @@ window.onload = function(){
             gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     
             gl.framebufferTexture2D(gl.FRAMEBUFFER,ext.COLOR_ATTACHMENT0_WEBGL+i,gl.TEXTURE_2D,fTexture[i],0);
-    
+          
         }
 
 
@@ -396,7 +437,7 @@ window.onload = function(){
             gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     
             gl.framebufferTexture2D(gl.FRAMEBUFFER,ext.COLOR_ATTACHMENT0_WEBGL+i,gl.TEXTURE_2D,fTexture[i],0);
-            console.log("Failed to open the specified link");
+   
     
         }
 
