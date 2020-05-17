@@ -1,5 +1,6 @@
 //Bloom :https://qiita.com/edo_m18/items/c43177c0a18a2ea210b6
 //lighiting :https://qiita.com/mebiusbox2/items/8a4734ab5b0854528789
+// voronoi :https://neort.io/art/bpme7hc3p9fbkbq84460?index=26&origin=tag
 var c,cw,ch,mx,my,wrapper;
   /**
      * @type {WebGLRenderingContext}
@@ -25,7 +26,7 @@ window.onload = function(){
     c = document.getElementById('canvas');
    
     cw = wrapper.offsetWidth;
-    ch =  wrapper.offsetHeight;
+    ch = wrapper.offsetHeight;
     c.width = cw; c.height = ch;
 
     var SAMPLE_COUNT = 15;
@@ -244,7 +245,7 @@ window.onload = function(){
         maketextureflag = true;
     }
 
-
+    var num =0;
 
     render();
 
@@ -415,10 +416,14 @@ window.onload = function(){
         //canvasをJPEG変換し、そのBase64文字列をhrefへセット
         a.href = c.toDataURL('image/jpeg', 0.85);
         //ダウンロード時のファイル名を指定
-        a.download = 'download.jpg';
+        var numst = String( num );
+        var title = 'download.jpg';
+        var str = numst+title
+        a.download = str;
         //クリックイベントを発生させる
         a.click();
-*/
+        num += 1;
+        */
         setTimeout(render,fps);
     }
 

@@ -310,10 +310,10 @@
                 metallic = 0.3;
                 roughness = 0.3;
                 ems = 0.;
-                float cms = pow(clamp(sin((6.7+time*1.5)*.5)-0.4,0.,0.25)/0.25,4.);
+                float cms = pow(clamp(sin((6.7+time*1.5)*.5),0.,0.25)/0.25,2.);
                 if(obfl(sp)<minimum) col = 4.*vec3(1,1,1.),metallic =0.2,roughness = 1.,ems =0.;
                 if(stage(sp)<minimum) col = vec3(0.05,0.2,0.9),roughness=1.;
-                if(capring(sp)<minimum) col = vec3(0.1,0.9,.1),ems =cms,metallic=0.7*(1.0-cms);
+                if(capring(sp)<minimum) col = vec3(0.1,0.9,.1),ems =cms,metallic=0.7*(1.0-cms),roughness=1.;
                 if(particle(sp)<minimum) col = vec3(1,1,1),ems= 1.,metallic =0.,roughness =0.;
                 if(wall(sp)<minimum) metallic =1.;
             
@@ -356,7 +356,7 @@
                     
                     if(obfl(refsp)<minimum) refcol = vec3(0.1,0.9,0.9),refmetallic =0.,refroughness = 1.,refems=0.;
                     if(stage(refsp)<minimum) refcol = vec3(0.05,0.2,0.9),refroughness=1.;
-                    if(capring(refsp)<minimum) refcol = vec3(0.1,0.9,.1),refems=cms,refmetallic =0.7*(1.0-cms);
+                    if(capring(refsp)<minimum) refcol = vec3(0.1,0.9,.1),refems=cms,refmetallic =0.7*(1.0-cms),refroughness=1.;
                     if(particle(refsp)<minimum) refcol = vec3(1,1,1),refems= 1.,refmetallic =0.,refroughness = 0.;
                     
                     refbool = 1;
@@ -517,21 +517,36 @@
             float sr = atan(pos.x,pos.z);
             vec2 sx = max(length(vec2(pos.x,pos.z))-20.,0.)*vec2(cos(sr),sin(sr));
             ld = normalize(vec3(-sx.x,-pos.y,-sx.y));
-            lightcol = 10.*pow(clamp(sin((6.7+time*1.5)*.5)-0.4,0.,0.25)/0.25,4.)*vec3(0.1,0.9,0.1)/dgl;
+            lightcol = 10.*pow(clamp(sin((6.7+time*1.5)*.5),0.,0.25)/0.25,2.)*vec3(0.1,0.9,0.1)/dgl;
             if(dgl<0.01) lightcol = vec3(0);
             reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
             reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
         
-            lpos = vec3(-7,6,3);
+            float bs = 0.4;
+            lpos = vec3(-6,6,6);
             ld = -normalize(pos-lpos);
-            lightcol = vec3(0.1,0.6,0.7)/pow(length(pos-lpos),1.);
+            lightcol = bs*vec3(0.1,0.1,1.)/pow(length(pos-lpos),1.);
             reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
             reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
 
-            lpos = vec3(-8,0,3);
+            lpos = vec3(6,6,-6);
         
             ld = -normalize(pos-lpos);
-            lightcol = 0.*vec3(0.2);
+            lightcol = bs*vec3(0.1,0.1,1.)/pow(length(pos-lpos),1.);;
+            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+
+            lpos = vec3(6,6,6);
+        
+            ld = -normalize(pos-lpos);
+            lightcol = bs*vec3(0.1,0.1,1.)/pow(length(pos-lpos),1.);;
+            reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+            reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
+
+            lpos = vec3(-6,6,-6);
+        
+            ld = -normalize(pos-lpos);
+            lightcol = bs*vec3(0.1,0.1,1.)/pow(length(pos-lpos),1.);;
             reflectdiffuse += calcdiffuse(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
             reflectspec += calcspec(diffuseColor,ld,lightcol,normal,vd,specularColor,specularRoughness);
 
