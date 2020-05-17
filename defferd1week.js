@@ -285,9 +285,9 @@ window.onload = function(){
         camPosition[1] = 3.*Math.sin(krt);
         camPosition[2] = radi*Math.sin(krt);
         if(kt>16.5){
-            camPosition[0] = 25*((kt-16.5)/15)-5;
+            camPosition[0] = 25*((kt+4.-16.5)/18)-4;
             camPosition[1] = 2.;
-            camPosition[2] = 25*(1.-(kt-16.5)/15)-5;
+            camPosition[2] = 25*(1.-(kt+4.-16.5)/18)-6;
         }
         gl.uniform3fv(uniLocation[2],camPosition);
         gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
